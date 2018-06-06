@@ -13,7 +13,7 @@ var PROBE_UUID;
 
 const INTERVAL = 100;
 
-module.exports = function(homebridge) {
+module.exports = function (homebridge) {
   PlatformAccessory = homebridge.platformAccessory;
   Accessory = homebridge.hap.Accessory;
   Service = homebridge.hap.Service;
@@ -165,30 +165,37 @@ class CommandPlatform {
         cmdId === this.cmdId && this.bright.updateValue(100);
       } else if (stdout) {
         let cmds = stdout.trim().split('\n');
-        let cmdsStr = cmds.map(cmd => cmd.replace(new RegExp('^' + prefix + '[\\W_]{0,}'), '').split('.')[0]).join();
+        let cmdsStr = cmds.map(cmd => cmd.replace(new RegExp('^' + prefix + '[\\W_]*'), '').split('.')[0]).join();
 
         Promise.all(cmds.map(cmd =>
-            new Promise((resolve, reject) =>
-              Exec(this.cmdDir + '/' + cmd, (error, stdout, stderr) => {
-                if (error) {
-                  this.log('Command', cmd, 'error:', error);
+          new Promise((resolve, reject) =>
+            Exec(this.cmdDir + '/' + cmd, (error, stdout, stderr) => {
+              if (error) {
+                this.log('Command', cmd, 'error:', error);
+                this.sendTGMessage(error);
 
-                  reject();
-                } else {
-                  let parts = cmd.split('.');
+                reject();
+              } else {
+                let parts = cmd.split('.');
 
-                  if (stdout) {
-                    parts.some(x => 'tg' === x) && this.sendTGMessage(stdout);
-                    // this.log('Command', cmd, 'stdout:', stdout);
-                  }
-
-                  if (stderr) {
-                    this.log('Command', cmd, 'stderr:', stderr);
-                  }
-
-                  resolve(parts.some(x => 'ok' === x));
+                if (stdout) {
+                  // this.log('Command', cmd, 'stdout:', stdout);
+                  parts.some(x => x === 'out') && this.sendTGMessage(stdout);
                 }
-              }))))
+
+                if (stderr) {
+                  this.log('Command', cmd, 'stderr:', stderr);
+                  if (parts.some(x => x === 'err')) {
+                    this.sendTGMessage(stderr);
+
+                    reject();
+                    return;
+                  }
+                }
+
+                resolve(parts.some(x => 'ok' === x));
+              }
+            }))))
           .then(res => {
             res.some(x => x) && this.sendTGMessage('Command: ' + cmdsStr + ' OK!')
             cmdId === this.cmdId && this.power.updateValue(this.onOff = 0);

@@ -1,6 +1,6 @@
 {
   "name": "homebridge-command-bulb",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Shell plugin for Homebridge (API 2.0): https://github.com/nfarina/homebridge",
   "main": "index.js",
   "repository": {
